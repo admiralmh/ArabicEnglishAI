@@ -1,0 +1,19 @@
+# المكتبات الأساسية
+PyMuPDF==1.23.5
+python-docx==0.8.11
+textract==1.6.3
+pytesseract==0.3.10
+cryptography==38.0.4
+transformers==4.38.1
+torch==2.1.2
+
+# دعم اللغة العربية (مُحدّث)
+arabic-reshaper==3.0.0
+python-bidi==0.4.2
+camel-tools==1.5.6
+numpy==1.26.4  # إصدار متوافق مع camel-tools
+
+# المكتبات المساعدة
+tqdm==4.66.1
+loguru==0.7.2
+python-dotenv==1.0.0

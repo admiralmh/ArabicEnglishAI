@@ -1,0 +1,6 @@
+﻿نص بسيط
+TXT
+
+مرحبا بك باللغة العربية
+
+Hello in english language
