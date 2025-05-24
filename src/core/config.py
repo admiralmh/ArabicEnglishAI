@@ -1,91 +1,46 @@
-__version__ = "3.0.0"  # إصدار كامل مع جميع التعديلات
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+"""
+config.py
+=========
+ملف إعدادات المشروع يحتوي على متغيرات التهيئة الأساسية
+"""
 
-import base64
 import os
-import logging
+from cryptography.fernet import Fernet
 from pathlib import Path
-from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+from dotenv import load_dotenv
 
-# ------ إعداد المسارات الأساسية ------
-BASE_DIR = Path(__file__).resolve().parent.parent
+# تحميل متغيرات البيئة من ملف .env (إذا كان موجودًا)
+load_dotenv()
+
+# مسار تخزين البيانات والملفات
+BASE_DIR = Path(os.getenv("BASE_DIR", "C:/Manhal/Manhal_ai"))
 DATA_DIR = BASE_DIR / "data"
-CONFIG_DIR = BASE_DIR / ".config"
-LOGS_DIR = BASE_DIR / "logs"
+LOG_DIR = BASE_DIR / "logs"
 
-# ------ إنشاء المجلدات الضرورية ------
-for folder in [DATA_DIR, CONFIG_DIR, LOGS_DIR]:
-    try:
-        folder.mkdir(parents=True, exist_ok=True)
-    except Exception as e:
-        logging.critical(f"فشل إنشاء مجلد {folder}: {str(e)}")
-        raise
+# توليد مفتاح تشفير فريد (إذا لم يكن متاحًا مسبقًا)
+SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY:
+    SECRET_KEY = Fernet.generate_key().decode()
+    with open(BASE_DIR / "secret.key", "w") as f:
+        f.write(SECRET_KEY)
 
-# ------ تهيئة نظام التسجيل ------
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    handlers=[
-        logging.FileHandler(LOGS_DIR / "app.log"),
-        logging.StreamHandler()
-    ]
-)
+# إعدادات قاعدة البيانات
+DB_NAME = "manhal_ai.db"
+DB_PATH = DATA_DIR / DB_NAME
 
-# ------ نظام إدارة المفاتيح الآمن ------
-class KeyManager:
-    def __init__(self):
-        self.key_path = CONFIG_DIR / "fernet.key"
-        self.salt = b'manhal_salt_2024'  # يجب تغييره في بيئة الإنتاج
-        
-        if not self.key_path.exists():
-            self._generate_fernet_key()
+# إعدادات نموذج التعلم العميق
+MODEL_NAME = "bert-base-arabic"
+NLP_THRESHOLD = 0.8  # حد الدقة لتحليل النصوص
 
-    def _generate_fernet_key(self):
-        """توليد مفتاح Fernet صالح باستخدام PBKDF2"""
-        try:
-            # استخدام كلمة مرور من متغيرات البيئة أو افتراضية
-            password = os.getenv("MANHAL_SECRET", "default-secret-1234").encode()
-            
-            # توليد المفتاح باستخدام خوارزمية PBKDF2
-            kdf = PBKDF2HMAC(
-                algorithm=hashes.SHA256(),
-                length=32,
-                salt=self.salt,
-                iterations=100000,
-                backend=default_backend()
-            )
-            
-            # توليد وتشفير المفتاح
-            key_material = kdf.derive(password)
-            fernet_key = base64.urlsafe_b64encode(key_material).decode('utf-8')
-            
-            # حفظ المفتاح في ملف
-            with open(self.key_path, "w", encoding="utf-8") as f:
-                f.write(fernet_key)
-                
-            logging.info("تم توليد مفتاح تشفير جديد بنجاح")
-            
-        except Exception as e:
-            logging.error(f"فشل توليد المفتاح: {str(e)}")
-            raise
+# إعدادات الأمان
+ENABLE_2FA = True  # تفعيل المصادقة الثنائية
+ENCRYPTION_ALGORITHM = "AES-256"
+HASH_ALGORITHM = "SHA-512"
 
-    def get_fernet_key(self) -> bytes:
-        """استرجاع مفتاح Fernet"""
-        try:
-            with open(self.key_path, "r", encoding="utf-8") as f:
-                key = f.read().strip()
-                return key.encode('utf-8')
-        except Exception as e:
-            logging.error(f"فشل قراءة المفتاح: {str(e)}")
-            raise
+# إنشاء المجلدات إذا لم تكن موجودة
+for directory in [DATA_DIR, LOG_DIR]:
+    os.makedirs(directory, exist_ok=True)
 
-# ------ التهيئة الرئيسية للنظام ------
-try:
-    logging.info("جاري تهيئة نظام التشفير...")
-    key_manager = KeyManager()
-    SECRET_KEY = key_manager.get_fernet_key()
-    logging.info("تم التهيئة بنجاح")
-except Exception as e:
-    logging.critical(f"فشل حرج في التهيئة: {str(e)}")
-    exit(1)
+print(f"تم تحميل الإعدادات بنجاح من {BASE_DIR}")

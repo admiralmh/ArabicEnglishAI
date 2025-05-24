@@ -1,19 +1,63 @@
-from transformers import AutoTokenizer, AutoModelForQuestionAnswering
-from text_processing import clean_arabic_text
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+"""
+ai_engine.py
+==================
+نظام الذكاء الاصطناعي لاستنتاج الإجابات وتحليل الأسئلة
+"""
 
-model_path = r"C:\Users\s\.cache\huggingface\hub\models--deepset--xlm-roberta-large-squad2\snapshots\dafe59921a75cdffc06ed3ad6e45c581b22b85cc"
+import torch
+from transformers import pipeline, AutoModelForQuestionAnswering, AutoTokenizer
+from pathlib import Path
+from ..text_processing import TextProcessor
+from ..database import DatabaseManager
+from ..config import DATA_DIR
+from deep_translator import GoogleTranslator
 
-tokenizer = AutoTokenizer.from_pretrained(model_path, local_files_only=True)
-model = AutoModelForQuestionAnswering.from_pretrained(model_path, local_files_only=True, ignore_mismatched_sizes=True)
+class AIEngine:
+    """
+    وحدة الذكاء الاصطناعي لفهم الأسئلة والبحث عن إجابات ذكية داخل البيانات
+    """
 
-def answer_question(question, text_data):
-    text_data = clean_arabic_text(text_data)
-    question = question.strip()
+    def __init__(self):
+        # تحميل نموذج الإجابة الذكية
+        self.model_name = "deepset/bert-base-cased-squad2"
+        self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
+        self.model = AutoModelForQuestionAnswering.from_pretrained(self.model_name)
+        self.qa_pipeline = pipeline("question-answering", model=self.model, tokenizer=self.tokenizer)
 
-    inputs = tokenizer(question, text_data[:512], return_tensors="pt", truncation=True)
-    outputs = model(**inputs)
-    answer_start = outputs.start_logits.argmax()
-    answer_end = outputs.end_logits.argmax() + 1
-    answer = tokenizer.decode(inputs["input_ids"][0][answer_start:answer_end])
+        # تهيئة وحدات معالجة النصوص وقاعدة البيانات
+        self.text_processor = TextProcessor(DATA_DIR)
+        self.db = DatabaseManager()
 
-    return answer.strip() if answer.strip() else "⚠️ لا توجد إجابة واضحة"
+    def answer_question(self, question: str, context: str) -> str:
+        """
+        استنتاج الإجابة بناءً على سياق النص المخزن في قاعدة البيانات
+        """
+        result = self.qa_pipeline(question=question, context=context)
+        return f"الإجابة: {result['answer']} (الثقة: {result['score']:.2f})"
+
+    def search_answer(self, question: str) -> str:
+        """
+        البحث عن إجابة داخل قاعدة البيانات باستخدام تحليل ذكي
+        """
+        documents = self.db.search_documents(question)
+        if not documents:
+            return "لم يتم العثور على إجابة مناسبة."
+
+        # استخدام أول مستند مطابق كمرجع للإجابة
+        doc_content = self.db.get_document(documents[0]["id"])["content"]
+        return self.answer_question(question, doc_content)
+
+    def translate_text(self, text: str, target_lang: str = "en") -> str:
+        """
+        ترجمة الإجابات بين العربية والإنجليزية مع الحفاظ على السياق
+        """
+        return GoogleTranslator(source="auto", target=target_lang).translate(text)
+
+# اختبار عملي للكود
+if __name__ == "__main__":
+    ai_engine = AIEngine()
+    sample_question = "ما هي القيم الأساسية في القرآن؟"
+    print(ai_engine.search_answer(sample_question))
+    print(ai_engine.translate_text("العدل هو أحد المبادئ المهمة في الإسلام", "en"))

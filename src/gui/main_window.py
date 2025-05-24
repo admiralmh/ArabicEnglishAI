@@ -1,61 +1,33 @@
-__version__ = "1.0.0"
-
 import tkinter as tk
 from tkinter import ttk, filedialog
-from core.database import DatabaseManager
-from core.file_reader import FileReader
+from ..core.file_processor import FileProcessor
+from .widgets.progress_bar import CustomProgressBar
 
-class MainWindow(tk.Tk):
-    def __init__(self, db: DatabaseManager, reader: FileReader):
+class MainApp(tk.Tk):
+    def __init__(self):
         super().__init__()
-        self.db = db
-        self.reader = reader
-        self.title("منهل - الذكاء الاصطناعي")
-        self.geometry("1000x800")
-        self._setup_widgets()
-    
-    def _setup_widgets(self):
-        """تهيئة عناصر الواجهة"""
-        # إطار تحميل الملفات
-        self.file_frame = ttk.LabelFrame(self, text="إدارة الملفات")
-        self.file_frame.pack(pady=10, fill=tk.X)
-        
-        # زر تحميل الملفات
-        self.btn_load = ttk.Button(
-            self.file_frame,
-            text="تحميل ملفات",
-            command=self._load_files
-        )
-        self.btn_load.pack(side=tk.LEFT, padx=5)
-        
-        # منطقة عرض النتائج
-        self.result_area = tk.Text(self, wrap=tk.WORD, font=('Arial', 12))
-        self.result_area.pack(expand=True, fill=tk.BOTH, padx=10, pady=10)
-    
-    def _load_files(self):
-        """معالجة تحميل الملفات"""
-        filetypes = (
-            ("ملفات نصية", "*.pdf;*.docx;*.txt"),
-            ("جميع الملفات", "*.*")
-        )
-        
-        filenames = filedialog.askopenfilenames(
-            title="اختر الملفات",
-            filetypes=filetypes
-        )
-        
-        if filenames:
-            self.result_area.delete(1.0, tk.END)
-            for f in filenames:
-                content = self.reader.read_file(f)
-                self.db.save_document(f.split('/')[-1], content)
-                self.result_area.insert(tk.END, f"تم تحميل: {f}\n")
+        self.title("منهل AI - معالج النصوص الذكي")
+        self.geometry("1200x800")
+        self.file_processor = FileProcessor()
+        self.progress_bar = CustomProgressBar(self)
+        self._setup_ui()
 
-if __name__ == "__main__":
-    # للتشغيل الاختباري
-    from core.database import DatabaseManager
-    from core.file_reader import FileReader
-    temp_db = DatabaseManager(":memory:")
-    temp_reader = FileReader()
-    app = MainWindow(temp_db, temp_reader)
-    app.mainloop()
+    def _setup_ui(self):
+        # شريط الأدوات
+        toolbar = ttk.Frame(self)
+        btn_load = ttk.Button(toolbar, text="تحميل ملف", command=self.load_file)
+        btn_load.pack(side=tk.LEFT, padx=5)
+        toolbar.pack(fill=tk.X)
+
+        # منطقة النتائج
+        self.text_area = tk.Text(self, wrap=tk.WORD, font=('Arial', 12))
+        self.text_area.pack(expand=True, fill=tk.BOTH)
+
+    def load_file(self):
+        """معالجة الملفات المحددة"""
+        files = filedialog.askopenfilenames(filetypes=[("ملفات مدعومة", SUPPORTED_FORMATS)])
+        for file in files:
+            self.progress_bar.start()
+            content = self.file_processor.process_file(file)
+            self.text_area.insert(tk.END, content + "\n\n")
+            self.progress_bar.complete()
