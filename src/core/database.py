@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Optional, List, Dict
 from contextlib import contextmanager
 from cryptography.fernet import Fernet, InvalidToken
-from ..config import SECRET_KEY, DATA_DIR
+from utils.security import SECRET_KEY, DATA_DIR
 
 class DatabaseManager:
     """
